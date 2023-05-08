@@ -1,16 +1,63 @@
 mod orm;
-use orm::*;
-use rusqlite::{params, Connection, Result};
+use std::{fmt::format, rc::Rc};
 
-#[derive(Storable, Debug)]
+use orm::*;
+use rusqlite::{params, Connection, Result, Row};
+
+#[derive(Debug, Clone)]
 struct User {
     id: u32,
     name: String,
 }
 
-#[derive(Database)]
+impl RowQuery<User> for User {
+    fn query(&self) -> User {
+        self.clone()
+    }
+
+    fn from_data(row: &Row, i: usize) -> Self {
+        User {
+            id: row.get(i + 0).unwrap(),
+            name: row.get(i + 1).unwrap(),
+        }
+    }
+
+    fn sql(&self) -> String {
+        let i = 0;
+        format!("{} AS a{}, {} AS a{}", self.id, i, self.name, i + 1)
+    }
+}
+
+impl Storable for User {
+    fn sql_create_table(name: &str) -> String {
+        format!(
+            "
+                CREATE TABLE IF NOT EXISTS {} (
+                    id INTEGER PRIMARY KEY,
+                    name TEXT NOT NULL
+                )
+            ",
+            name
+        )
+    }
+
+    fn row_to_mem() -> String {
+        format!("id AS a0, name AS a1")
+    }
+}
+
 struct Db {
     users: Table<User>,
+}
+
+impl Database for Db {
+    fn connect() -> Self {
+        let con = Rc::new(Connection::open_in_memory().unwrap());
+
+        Self {
+            users: Table::create(con.clone(), "users"),
+        }
+    }
 }
 
 fn main() -> Result<()> {
@@ -22,20 +69,12 @@ fn main() -> Result<()> {
     };
 
     db.users
-        .conn
+        .con
         .execute("INSERT INTO users (name) VALUES (?1)", (&me.name,))?;
 
-    let mut stmt = db.users.conn.prepare("SELECT id, name FROM users")?;
-    let user_iter = stmt.query_map([], |row| {
-        Ok(User {
-            id: row.get(0)?,
-            name: row.get(1)?,
-        })
-    })?;
+    let users = db.users.query();
 
-    for user in user_iter {
-        println!("Found user {:?}", user.unwrap());
-    }
+    dbg!(users);
 
     Ok(())
 }

@@ -19,11 +19,15 @@ pub fn derive_storable(input: proc_macro::TokenStream) -> proc_macro::TokenStrea
 
     let expanded = quote! {
       impl #impl_generics Storable for #name #ty_generics #where_clause {
-        fn create_statement(name: &str) -> String {
+        fn sql_create_table(name: &str) -> String {
           format!("CREATE TABLE IF NOT EXISTS {} (
             id INTEGER PRIMARY KEY,
             name TEXT NOT NULL
           )", name)
+        }
+
+        fn row_to_mem() -> String {
+          format!("id AS a0, name AS a1")
         }
       }
     };
