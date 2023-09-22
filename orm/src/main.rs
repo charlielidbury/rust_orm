@@ -72,7 +72,10 @@ fn main() -> Result<()> {
         .con
         .execute("INSERT INTO users (name) VALUES (?1)", (&me.name,))?;
 
-    let users = db.users.query();
+    // Get the name of all dada
+    let users = db.users
+        .map(|u| u.name)
+        .query();
 
     dbg!(users);
 

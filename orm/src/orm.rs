@@ -5,11 +5,25 @@ use rusqlite::{Connection, Row, Rows};
 
 // Can be queried to form a T
 pub trait Query<T>: Clone {
+    type QueryRow: RowQuery<T>;
+
     fn query(&self) -> Vec<T>;
 
     fn from_data<'a>(data: Rows) -> Self;
 
     fn sql(&self) -> String;
+
+    fn map<U, F>(self, f: F);
+}
+
+pub struct MapQuery<
+    T,
+    SubQuery: Query<T>,
+    Mapping: FnOnce(SubQuery::QueryRow) -> ,
+> {
+    query: SubQuery,
+    mapping: Mapping,
+    _fuck_you_rustc: PhantomData<T>,
 }
 
 pub trait RowQuery<T>: Clone {
